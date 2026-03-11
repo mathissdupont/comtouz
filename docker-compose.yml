@@ -1,0 +1,23 @@
+services:
+  neo4j:
+    image: neo4j:5.26-community
+    container_name: comtouz-neo4j
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    environment:
+      NEO4J_AUTH: neo4j/change-this-password
+      NEO4J_server_memory_heap_initial__size: 512M
+      NEO4J_server_memory_heap_max__size: 512M
+      NEO4J_server_memory_pagecache_size: 512M
+    volumes:
+      - ./infra/.data/neo4j:/data
+
+  redis:
+    image: redis:7.4-alpine
+    container_name: comtouz-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --save 60 1 --loglevel warning
+    volumes:
+      - ./infra/.data/redis:/data

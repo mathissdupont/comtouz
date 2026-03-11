@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "ignoreDeprecations": "5.0",
+    "allowJs": false,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "baseUrl": ".",
+    "paths": {
+      "@comtouz/domain": ["packages/domain/src/index.ts"],
+      "@comtouz/graph": ["packages/graph/src/index.ts"],
+      "@comtouz/cache": ["packages/cache/src/index.ts"],
+      "@comtouz/security": ["packages/security/src/index.ts"]
+    }
+  }
+}
