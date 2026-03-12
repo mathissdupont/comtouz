@@ -42,8 +42,11 @@ export async function createEncounterOffer(user: SessionUser, input: EncounterOf
     countryCode: cloudflare.country
   };
 
-  await redis.hmset(encounterOfferKey(nonce), payload);
-  await redis.expire(encounterOfferKey(nonce), encounterTokenTtlSeconds);
+  const offerKey = encounterOfferKey(nonce);
+  const pipeline = redis.pipeline();
+  pipeline.hmset(offerKey, payload);
+  pipeline.expire(offerKey, encounterTokenTtlSeconds);
+  await pipeline.exec();
 
   return payload;
 }

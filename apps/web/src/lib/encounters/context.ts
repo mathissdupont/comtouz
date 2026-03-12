@@ -59,8 +59,10 @@ async function finalizeFromAgreement(nonce: string, resolvedContext: EncounterCo
     claimantEntitlementId: crypto.randomUUID()
   });
 
-  await redis.set(encounterFinalizeKey(nonce), JSON.stringify(encounter), "EX", replayGuardTtlSeconds);
-  await redis.set(replayGuardKey(nonce), new Date().toISOString(), "EX", replayGuardTtlSeconds);
+  const pipeline = redis.pipeline();
+  pipeline.set(encounterFinalizeKey(nonce), JSON.stringify(encounter), "EX", replayGuardTtlSeconds);
+  pipeline.set(replayGuardKey(nonce), new Date().toISOString(), "EX", replayGuardTtlSeconds);
+  await pipeline.exec();
 
   return encounter;
 }
@@ -87,11 +89,14 @@ export async function submitEncounterContext(user: SessionUser, nonce: string, s
     throw new Error("Encounter offer expired before context submission.");
   }
 
-  await redis.hmset(encounterContextKey(nonce, user.userId), {
+  const contextKey = encounterContextKey(nonce, user.userId);
+  const contextPipeline = redis.pipeline();
+  contextPipeline.hmset(contextKey, {
     selectedContext,
     submittedAt: new Date().toISOString()
   });
-  await redis.expire(encounterContextKey(nonce, user.userId), ttl);
+  contextPipeline.expire(contextKey, ttl);
+  await contextPipeline.exec();
 
   const [initiatorContext, claimantContext] = await Promise.all([
     redis.hgetall(encounterContextKey(nonce, offer.initiatorUserId)),
@@ -113,8 +118,11 @@ export async function submitEncounterContext(user: SessionUser, nonce: string, s
       updatedAt: new Date().toISOString()
     };
 
-    await redis.hmset(negotiationKey(nonce), negotiationState);
-    await redis.expire(negotiationKey(nonce), ttl);
+    const negKey = negotiationKey(nonce);
+    const negotiationPipeline = redis.pipeline();
+    negotiationPipeline.hmset(negKey, negotiationState);
+    negotiationPipeline.expire(negKey, ttl);
+    await negotiationPipeline.exec();
 
     return {
       status: "negotiation_required" as const,
@@ -159,13 +167,16 @@ export async function negotiateEncounterContext(user: SessionUser, nonce: string
     throw new Error("Encounter offer expired before negotiation completed.");
   }
 
-  await redis.hset(negotiationKey(nonce), `proposal:${user.userId}`, proposedContext);
-  await redis.hset(negotiationKey(nonce), "updatedAt", new Date().toISOString());
-  await redis.expire(negotiationKey(nonce), ttl);
+  const negKey = negotiationKey(nonce);
+  const updatePipeline = redis.pipeline();
+  updatePipeline.hset(negKey, `proposal:${user.userId}`, proposedContext);
+  updatePipeline.hset(negKey, "updatedAt", new Date().toISOString());
+  updatePipeline.expire(negKey, ttl);
+  await updatePipeline.exec();
 
   const [initiatorProposal, claimantProposal] = await Promise.all([
-    redis.hget(negotiationKey(nonce), `proposal:${offer.initiatorUserId}`),
-    redis.hget(negotiationKey(nonce), `proposal:${claim.claimantUserId}`)
+    redis.hget(negKey, `proposal:${offer.initiatorUserId}`),
+    redis.hget(negKey, `proposal:${claim.claimantUserId}`)
   ]);
 
   if (!initiatorProposal || !claimantProposal) {

@@ -37,12 +37,16 @@ export async function claimEncounterOffer(user: SessionUser, nonce: string) {
     claimedAt: new Date().toISOString()
   };
 
-  await redis.hmset(encounterClaimKey(nonce), payload);
-  await redis.expire(encounterClaimKey(nonce), ttl);
+  const claimKey = encounterClaimKey(nonce);
+  const pipeline = redis.pipeline();
+  pipeline.hmset(claimKey, payload);
+  pipeline.expire(claimKey, ttl);
 
   if (!offer.counterpartUserId) {
-    await redis.hset(encounterOfferKey(nonce), "counterpartUserId", user.userId);
+    pipeline.hset(encounterOfferKey(nonce), "counterpartUserId", user.userId);
   }
+
+  await pipeline.exec();
 
   return {
     ...payload,
